@@ -94,8 +94,6 @@ automatically by the plugin installer.
 
 ### Setting up the cron job
 
-> **⚠️ 关键：** `--skills` **必须指定为** `dreaming:dreaming`（插件名:技能名），**不能只写** `dreaming`。这是插件提供的内建技能引用格式，写错了 cron agent 将无法加载工作流，导致诗意梦境和汇报无法生成。
-
 After the plugin is loaded and the gateway is running, create the cron job:
 
 ```bash
