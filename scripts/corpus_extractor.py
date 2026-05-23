@@ -147,23 +147,18 @@ def _parse_session_timestamp_ms(record: dict, message: dict) -> int | None:
     return None
 
 
-def extract_daily_corpus(sessions_dir: str | Path | None = None) -> Path:
+def extract_daily_corpus() -> Path:
     """Extract today's sessions into a plain-text corpus file.
-
-    Args:
-        sessions_dir: Optional override for the sessions directory to scan.
-                      Defaults to utils.sessions_dir() ($HERMES_HOME/sessions/).
 
     Mirrors OpenClaw buildSessionEntry() + buildSessionRenderedLine() logic.
     """
     corpus_dir = dreams_dir() / "corpus"
     corpus_dir.mkdir(parents=True, exist_ok=True)
 
-    target_dir = Path(sessions_dir) if sessions_dir else sessions_dir()
     date_prefixes = [today_compact(), today_iso()]
     session_files = []
     for prefix in date_prefixes:
-        session_files.extend(glob.glob(str(target_dir / f"*{prefix}*")))
+        session_files.extend(glob.glob(str(sessions_dir() / f"*{prefix}*")))
     session_files = sorted(set(session_files))
 
     all_lines: list[str] = []
