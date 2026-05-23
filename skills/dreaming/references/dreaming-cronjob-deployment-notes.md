@@ -30,20 +30,6 @@ hermes cron list
 # 正确格式：feishu:oc_xxx 或 feishu:ou_xxx
 ```
 
-## 2026-05-15 调查："做梦后定时任务死了"现象
-
-### 根本原因分析
-
-**不是"做梦导致任务死亡"，而是 delivery 管道卡住。**
-
-1. 天气任务执行时间过长（10-15 分钟），产生"死了"的错觉
-2. 用户 workaround（`hermes cron update`）触发 scheduler 刷新，使卡住的 delivery 队列恢复
-3. 与做梦的时间关联是偶然——做梦在 23:00 执行，次日早上的天气/早安任务从 7:10 开始
-
-### 建议
-- 如果 cron job 执行正常但用户未收到消息，检查 `hermes cron list` + `~/.hermes/cron/output/<job_id>/` 下的输出文件
-- 可以手动执行 `hermes cron update <job_id>` 尝试触发 delivery 刷新
-
 ---
 
 ## 关联文件
