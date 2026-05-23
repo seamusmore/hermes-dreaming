@@ -49,13 +49,13 @@ RUN_PHASES_SCHEMA = {
 }
 
 
-def _handle_extract_corpus() -> dict:
+def _handle_extract_corpus(**kwargs) -> dict:
     """Handler for dreaming_extract_corpus tool."""
     corpus_path = extract_daily_corpus()
     return {"corpus_path": str(corpus_path)}
 
 
-def _handle_run_phases(corpus_path: str) -> dict:
+def _handle_run_phases(corpus_path: str, **kwargs) -> dict:
     """Handler for dreaming_run_phases tool."""
     return run_phases(corpus_path)
 
