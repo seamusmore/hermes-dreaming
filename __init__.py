@@ -49,15 +49,18 @@ RUN_PHASES_SCHEMA = {
 }
 
 
-def _handle_extract_corpus(**kwargs) -> dict:
+def _handle_extract_corpus(args=None, **kwargs) -> str:
     """Handler for dreaming_extract_corpus tool."""
+    import json
     corpus_path = extract_daily_corpus()
-    return {"corpus_path": str(corpus_path)}
+    return json.dumps({"corpus_path": str(corpus_path)})
 
 
-def _handle_run_phases(corpus_path: str, **kwargs) -> dict:
+def _handle_run_phases(args=None, **kwargs) -> str:
     """Handler for dreaming_run_phases tool."""
-    return run_phases(corpus_path)
+    import json
+    corpus_path = args.get("corpus_path") if isinstance(args, dict) else str(args)
+    return json.dumps(run_phases(corpus_path))
 
 
 def register(ctx) -> None:
