@@ -104,7 +104,7 @@ def record_daily_signal(
     day: str,
 ) -> None:
     """Record a daily-ingestion signal with fixed score."""
-    from utils import DAILY_INGESTION_SCORE
+    from .utils import DAILY_INGESTION_SCORE
     record_signal(store, key, snippet, concept_tags, DAILY_INGESTION_SCORE, source_path, day)
 
     entries = store.setdefault("entries", {})
@@ -121,5 +121,5 @@ def record_session_signal(
     day: str,
 ) -> None:
     """Record a session-transcript signal with fixed score."""
-    from utils import SESSION_INGESTION_SCORE
+    from .utils import SESSION_INGESTION_SCORE
     record_signal(store, key, snippet, concept_tags, SESSION_INGESTION_SCORE, source_path, day)
