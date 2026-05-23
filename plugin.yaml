@@ -1,0 +1,8 @@
+name: dreaming
+version: 1.0.0
+description: "Hermes's nightly dreaming engine — extract corpus and run Light/REM/Deep memory consolidation phases"
+author: Luna
+kind: backend
+provides_tools:
+  - dreaming_extract_corpus
+  - dreaming_run_phases
