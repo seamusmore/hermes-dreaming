@@ -12,7 +12,7 @@ import json
 import glob
 import re
 from pathlib import Path
-from scripts.utils import sessions_dir, dreams_dir, today_iso, today_compact, tz_sh
+from .utils import sessions_dir, dreams_dir, today_iso, today_compact, tz_sh
 
 SESSION_EXPORT_CONTENT_WRAP_CHARS = 280
 

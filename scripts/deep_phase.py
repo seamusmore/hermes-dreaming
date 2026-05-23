@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from scripts.utils import (
+from .utils import (
     today_iso,
     tz_sh,
     memories_dir,
@@ -23,7 +23,7 @@ from scripts.utils import (
     DEFAULT_PROMOTION_MIN_SCORE,
     DEFAULT_PROMOTION_WEIGHTS,
 )
-from scripts.short_term_store import get_store, get_phase_signals, save_store
+from .short_term_store import get_store, get_phase_signals, save_store
 
 
 def _backup_memory_md() -> Optional[Path]:

@@ -13,10 +13,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from scripts.utils import tz_sh, today_iso
-from scripts.light_phase import run_light_phase
-from scripts.rem_phase import run_rem_phase
-from scripts.deep_phase import run_deep_phase
+from .utils import tz_sh, today_iso
+from .light_phase import run_light_phase
+from .rem_phase import run_rem_phase
+from .deep_phase import run_deep_phase
 
 
 def run_phases(corpus_path: str) -> dict:

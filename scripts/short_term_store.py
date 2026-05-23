@@ -4,7 +4,7 @@ import math
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from scripts.utils import (
+from .utils import (
     load_json,
     save_json,
     short_term_store_path,
@@ -14,7 +14,7 @@ from scripts.utils import (
     tz_sh,
     derive_concept_tags,
 )
-from scripts.utils import get_hermes_home
+from .utils import get_hermes_home
 
 def get_store() -> dict:
     """Load the short-term recall store; create if missing."""

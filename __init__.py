@@ -19,8 +19,8 @@ Skill:
 
 from pathlib import Path
 
-from scripts.corpus_extractor import extract_daily_corpus
-from scripts.run_phases import run_phases
+from .scripts.corpus_extractor import extract_daily_corpus
+from .scripts.run_phases import run_phases
 
 
 EXTRACT_CORPUS_SCHEMA = {

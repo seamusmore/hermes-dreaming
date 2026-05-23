@@ -4,7 +4,7 @@ import math
 from datetime import datetime
 from typing import List, Tuple
 
-from scripts.utils import (
+from .utils import (
     today_iso,
     tz_sh,
     jaccard_similarity,
@@ -14,7 +14,7 @@ from scripts.utils import (
     clamp_score,
     derive_concept_tags,
 )
-from scripts.short_term_store import get_store, get_phase_signals, save_phase_signals
+from .short_term_store import get_store, get_phase_signals, save_phase_signals
 
 
 def _dedupe_entries(entries: List[dict], threshold: float = 0.88) -> List[dict]:
