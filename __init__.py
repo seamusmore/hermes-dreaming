@@ -28,7 +28,12 @@ EXTRACT_CORPUS_SCHEMA = {
     "description": "Extract today's conversation corpus from Hermes session files into ~/.hermes/dreams/corpus/YYYY-MM-DD.txt",
     "parameters": {
         "type": "object",
-        "properties": {},
+        "properties": {
+            "sessions_dir": {
+                "type": "string",
+                "description": "Optional. Absolute path to the sessions directory to extract from. Defaults to $HERMES_HOME/sessions/.",
+            },
+        },
     },
 }
 
@@ -52,7 +57,10 @@ RUN_PHASES_SCHEMA = {
 def _handle_extract_corpus(args=None, **kwargs) -> str:
     """Handler for dreaming_extract_corpus tool."""
     import json
-    corpus_path = extract_daily_corpus()
+    sessions_dir = None
+    if isinstance(args, dict):
+        sessions_dir = args.get("sessions_dir")
+    corpus_path = extract_daily_corpus(sessions_dir=sessions_dir)
     return json.dumps({"corpus_path": str(corpus_path)})
 
 

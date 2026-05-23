@@ -66,6 +66,16 @@ Cron agent（LLM）在工具之上完成 AI 生成：
 
 调用 `dreaming_extract_corpus` 工具提取当日 session 语料。
 
+```
+# 默认：读取 $HERMES_HOME/sessions/（当前 profile 的 session 目录）
+dreaming_extract_corpus()
+
+# 多 profile 场景必须传入对应 profile 的 sessions 路径：
+dreaming_extract_corpus(sessions_dir="$HERMES_HOME/sessions")
+```
+
+其中 `sessions_dir` 可选。**不传时默认读取 `$HERMES_HOME/sessions/`。多 profile 必须传，否则会读到主账号的聊天记录。**
+
 输出：`~/.hermes/dreams/corpus/YYYY-MM-DD.txt`
 
 ### Step 2: 生成 Daily Memory

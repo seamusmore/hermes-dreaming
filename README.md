@@ -110,6 +110,8 @@ hermes cron create \
 Replace `<your-feishu-chat-id>` with the actual chat ID where reports
 should be delivered (e.g. `oc_b84xxxxxxxxxx`).
 
+> **多 profile 场景：** 必须传入对应 profile 的 sessions 路径作为 `sessions_dir` 参数，否则默认读取主账号会话，无法实现隔离。参见上方 `dreaming_extract_corpus` 工具说明。
+
 You can verify the job is scheduled:
 
 ```bash
