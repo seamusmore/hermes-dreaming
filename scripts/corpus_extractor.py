@@ -6,13 +6,17 @@ Ported from OpenClaw's engine-qmd session transcript logic:
 - Strip system/cron/heartbeat wrapper messages
 - Soft-wrap long lines at 280 chars
 - Annotate each line with source file and line number
+
+Primary source: SQLite state.db (Hermes 0.14+ canonical store).
+Fallback: disk files in ~/.hermes/sessions/.
 """
 
 import json
 import glob
 import re
+import sqlite3
 from pathlib import Path
-from .utils import sessions_dir, dreams_dir, today_iso, today_compact, tz_sh
+from .utils import sessions_dir, dreams_dir, today_iso, today_compact, tz_sh, get_hermes_home
 
 SESSION_EXPORT_CONTENT_WRAP_CHARS = 280
 
@@ -147,14 +151,59 @@ def _parse_session_timestamp_ms(record: dict, message: dict) -> int | None:
     return None
 
 
-def extract_daily_corpus() -> Path:
-    """Extract today's sessions into a plain-text corpus file.
+def _extract_from_state_db() -> list[str]:
+    """Extract today's conversations from SQLite state.db (primary source).
 
-    Mirrors OpenClaw buildSessionEntry() + buildSessionRenderedLine() logic.
+    Hermes 0.14+ stores sessions in state.db by default; disk snapshots
+    are opt-in.  This function queries state.db when disk files are absent.
     """
-    corpus_dir = dreams_dir() / "corpus"
-    corpus_dir.mkdir(parents=True, exist_ok=True)
+    state_db_path = get_hermes_home() / "state.db"
+    if not state_db_path.exists():
+        return []
 
+    today = today_iso()
+    all_lines: list[str] = []
+    conn = sqlite3.connect(str(state_db_path))
+
+    sessions = conn.execute("""
+        SELECT id, source, title
+        FROM sessions
+        WHERE date(started_at, 'unixepoch', 'localtime') = ?
+          AND source IN ('feishu', 'cli')
+        ORDER BY started_at
+    """, (today,)).fetchall()
+
+    for sid, source, title in sessions:
+        session_scope = f"hermes/state.db/{sid}"
+        all_lines.append(f"[{session_scope}]")
+
+        messages = conn.execute("""
+            SELECT role, content
+            FROM messages
+            WHERE session_id = ?
+              AND role IN ('user', 'assistant')
+            ORDER BY timestamp
+        """, (sid,)).fetchall()
+
+        for msg_idx, (role, content) in enumerate(messages, start=1):
+            if not content or not content.strip():
+                continue
+            text = _sanitize_session_text(content, role)
+            if not text:
+                continue
+            label = "User" if role == "user" else "Assistant"
+            rendered = _render_session_lines(label, text)
+            for snippet in rendered:
+                all_lines.append(f"[{session_scope}#L{msg_idx}] {snippet}")
+
+        all_lines.append("")
+
+    conn.close()
+    return all_lines
+
+
+def _extract_from_disk_files() -> list[str]:
+    """Extract today's sessions from disk files (fallback)."""
     date_prefixes = [today_compact(), today_iso()]
     session_files = []
     for prefix in date_prefixes:
@@ -165,7 +214,6 @@ def extract_daily_corpus() -> Path:
 
     for filepath in session_files:
         basename = Path(filepath).name
-        # Read raw content
         try:
             with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 raw_content = f.read()
@@ -175,7 +223,6 @@ def extract_daily_corpus() -> Path:
         if not raw_content.strip():
             continue
 
-        # Determine format: JSONL vs JSON array/object
         lines = raw_content.splitlines()
         collected: list[str] = []
         line_map: list[int] = []
@@ -191,7 +238,6 @@ def extract_daily_corpus() -> Path:
                 except json.JSONDecodeError:
                     continue
 
-                # OpenClaw: record.type === "message"
                 if not isinstance(record, dict) or record.get("type") != "message":
                     continue
 
@@ -254,7 +300,6 @@ def extract_daily_corpus() -> Path:
         if not collected:
             continue
 
-        # Build OpenClaw-style header + annotated lines
         session_scope = f"hermes/sessions/{basename}"
         all_lines.append(f"[{session_scope}]")
         for idx, snippet in enumerate(collected):
@@ -262,10 +307,39 @@ def extract_daily_corpus() -> Path:
             all_lines.append(f"[{session_scope}#L{src_line}] {snippet}")
         all_lines.append("")
 
+    return all_lines
+
+
+def extract_daily_corpus() -> Path:
+    """Extract today's sessions into a plain-text corpus file.
+
+    Primary source: SQLite state.db (Hermes 0.14+ canonical store).
+    Fallback: disk files in ~/.hermes/sessions/.
+    """
+    corpus_dir = dreams_dir() / "corpus"
+    corpus_dir.mkdir(parents=True, exist_ok=True)
+
+    all_lines: list[str] = []
+
+    # Primary source: SQLite state.db
+    state_lines = _extract_from_state_db()
+    if state_lines:
+        all_lines = state_lines
+        source_label = f"(SQLite state.db: {len(state_lines)} lines)"
+    else:
+        # Fallback: disk files
+        disk_lines = _extract_from_disk_files()
+        if disk_lines:
+            all_lines = disk_lines
+            source_label = f"(disk files: {len(disk_lines)} lines)"
+        else:
+            source_label = "(no sessions found)"
+
     # Write output
+    total_lines = len(all_lines)
     header = [
         f"# Session Corpus — {today_iso()}",
-        f"# Extracted from {len(session_files)} session files",
+        f"# Extracted from {total_lines} lines {source_label}",
         f"# Format: [hermes/sessions/<file>#L<line>] <Speaker>: <text>",
         "",
     ]
