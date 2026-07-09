@@ -82,6 +82,56 @@ def _strip_internal_runtime_context(text: str) -> str:
     return "\n".join(filtered)
 
 
+def _strip_code_blocks(text: str) -> str:
+    """Remove fenced code blocks (```...```) from text.
+
+    Code blocks are noise for memory consolidation — they are raw tool output,
+    config snippets, or formatted data, not natural conversation.
+    Both the fences and the content between them are removed.
+
+    If a code block is not closed (opening ``` without matching close),
+    the content from the opening ``` to the end is kept — we cannot assume
+    it is a code block without a closing fence.
+    """
+    lines = text.splitlines()
+    result = []
+    in_code_block = False
+    code_start_idx = -1
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            if not in_code_block:
+                in_code_block = True
+                code_start_idx = i
+            else:
+                in_code_block = False
+                code_start_idx = -1
+            continue
+        if in_code_block:
+            continue
+        result.append(line)
+
+    # Unclosed code block: keep everything from the opening ``` onward
+    if in_code_block and code_start_idx >= 0:
+        result.extend(lines[code_start_idx:])
+
+    return "\n".join(result)
+
+
+def _strip_image_markers(text: str) -> str:
+    """Remove image placeholder lines like [Image: ...] and [IMAGE: ...]."""
+    lines = text.splitlines()
+    result = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[Image]") or stripped.startswith("[IMAGE:"):
+            continue
+        if stripped.startswith("MEDIA:"):
+            continue
+        result.append(line)
+    return "\n".join(result)
+
+
 def _sanitize_session_text(text: str, role: str) -> str | None:
     """Mirror OpenClaw sanitizeSessionText() pipeline + Hermes-specific filters."""
     text = text.strip()
@@ -99,6 +149,9 @@ def _sanitize_session_text(text: str, role: str) -> str | None:
         return None
     # Strip internal runtime context (Hermes-specific)
     text = _strip_internal_runtime_context(text)
+    # Strip code blocks and image markers (noise for memory consolidation)
+    text = _strip_code_blocks(text)
+    text = _strip_image_markers(text)
     if not text.strip():
         return None
     # Compact whitespace (mirror normalizeSessionText)

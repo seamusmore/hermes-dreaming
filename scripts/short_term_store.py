@@ -56,7 +56,12 @@ def record_signal(
     day: str,
     query_hash: Optional[str] = None,
 ) -> None:
-    """Record or update a short-term signal entry."""
+    """Record or update a short-term signal entry.
+
+    Dedup: if query_hash is already in queryHashes AND day is already in
+    recallDays, this is a repeat within the same scan — skip the signal.
+    Different days or different query_hashes always count as new signals.
+    """
     entries = store.setdefault("entries", {})
     now_iso = datetime.now(tz_sh()).isoformat()
 
@@ -78,10 +83,20 @@ def record_signal(
         }
 
     entry = entries[key]
+
+    # Dedup: same query_hash + same day → skip
+    if query_hash and day:
+        if query_hash in entry.get("queryHashes", []) and day in entry.get("recallDays", []):
+            return
+
     entry["recallCount"] = entry.get("recallCount", 0) + 1
     entry["totalScore"] = entry.get("totalScore", 0.0) + score
     entry["maxScore"] = max(entry.get("maxScore", 0.0), score)
     entry["lastRecalledAt"] = now_iso
+
+    # Daily source → dailyCount + 1
+    if query_hash and query_hash.startswith("daily:"):
+        entry["dailyCount"] = entry.get("dailyCount", 0) + 1
 
     if day and day not in entry.get("recallDays", []):
         entry["recallDays"].append(day)
@@ -95,6 +110,21 @@ def record_signal(
             entry["queryHashes"] = entry["queryHashes"][-20:]
 
 
+def _extract_date_from_filename(filename: str) -> str:
+    """Extract YYYY-MM-DD date from a corpus or daily memory filename."""
+    stem = Path(filename).stem
+    # e.g. "2026-07-08" or "2026-07-08-something"
+    parts = stem.split("-")
+    if len(parts) >= 3:
+        date = "-".join(parts[:3])
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+            return date
+        except ValueError:
+            pass
+    return stem
+
+
 def record_daily_signal(
     store: dict,
     key: str,
@@ -105,11 +135,10 @@ def record_daily_signal(
 ) -> None:
     """Record a daily-ingestion signal with fixed score."""
     from .utils import DAILY_INGESTION_SCORE
-    record_signal(store, key, snippet, concept_tags, DAILY_INGESTION_SCORE, source_path, day)
-
-    entries = store.setdefault("entries", {})
-    if key in entries:
-        entries[key]["dailyCount"] = entries[key].get("dailyCount", 0) + 1
+    file_date = _extract_date_from_filename(source_path)
+    query_hash = f"daily:{file_date}"
+    record_signal(store, key, snippet, concept_tags,
+                   DAILY_INGESTION_SCORE, source_path, day, query_hash=query_hash)
 
 
 def record_session_signal(
@@ -122,4 +151,7 @@ def record_session_signal(
 ) -> None:
     """Record a session-transcript signal with fixed score."""
     from .utils import SESSION_INGESTION_SCORE
-    record_signal(store, key, snippet, concept_tags, SESSION_INGESTION_SCORE, source_path, day)
+    file_date = _extract_date_from_filename(source_path)
+    query_hash = f"session:{file_date}"
+    record_signal(store, key, snippet, concept_tags,
+                   SESSION_INGESTION_SCORE, source_path, day, query_hash=query_hash)

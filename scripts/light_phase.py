@@ -6,6 +6,7 @@ from typing import List, Tuple
 
 from .utils import (
     today_iso,
+    tz_sh,
     derive_concept_tags,
     load_json,
     short_term_store_path,
@@ -89,10 +90,8 @@ def _ingest_corpus(store, corpus_path: Path, day: str, day_state: dict) -> int:
     chunks = _chunk_corpus(text)
 
     ingested = 0
-    for summary, snippet in chunks:
-        key = _make_key(snippet)
-        if not key or len(key) < 3:
-            continue
+    for i, (summary, snippet) in enumerate(chunks):
+        key = f"session:{corpus_path.stem}:{i}"
         concept_tags = derive_concept_tags(str(corpus_path), snippet)
         record_session_signal(store, key, summary, concept_tags, str(corpus_path), day)
         ingested += 1
@@ -111,10 +110,8 @@ def _ingest_daily_file(store, daily_path: Path, day: str, day_state: dict) -> in
     chunks = _chunk_daily_memory(text)
 
     ingested = 0
-    for summary, snippet in chunks:
-        key = _make_key(snippet)
-        if not key or len(key) < 3:
-            continue
+    for i, (summary, snippet) in enumerate(chunks):
+        key = f"daily:{daily_path.stem}:{i}"
         concept_tags = derive_concept_tags(str(daily_path), snippet)
         record_daily_signal(store, key, summary, concept_tags, str(daily_path), day)
         ingested += 1
@@ -123,11 +120,25 @@ def _ingest_daily_file(store, daily_path: Path, day: str, day_state: dict) -> in
     return ingested
 
 
+def _within_lookback(filename_stem: str, lookback: int) -> bool:
+    """Check if a YYYY-MM-DD filename stem is within the last N days."""
+    from datetime import datetime, timedelta
+    try:
+        file_date = datetime.strptime(filename_stem, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+    today = datetime.now(tz_sh()).date()
+    return (today - file_date).days < lookback
+
+
 def run_light_phase(corpus_path: Path) -> dict:
     """
     Ingest corpus and daily memory into short-term store.
+    Scans recent files within LOOKBACK_DAYS to accumulate cross-day signals.
     Returns: {"ingested": int, "skipped": int, "store_path": str}
     """
+    LOOKBACK_DAYS = 7
+
     store = get_store()
     ingestion_state = get_daily_ingestion_state()
     day = today_iso()
@@ -136,16 +147,23 @@ def run_light_phase(corpus_path: Path) -> dict:
 
     total_ingested = 0
 
-    # 1. Ingest session corpus
-    if corpus_path.exists():
-        total_ingested += _ingest_corpus(store, corpus_path, day, day_state)
+    # 1. Scan corpus files within lookback window
+    corpus_dir = dreams_dir() / "corpus"
+    if corpus_dir.exists():
+        for f in sorted(corpus_dir.iterdir()):
+            if not f.is_file() or not f.name.endswith(".txt"):
+                continue
+            if _within_lookback(f.stem, LOOKBACK_DAYS):
+                total_ingested += _ingest_corpus(store, f, day, day_state)
 
-    # 2. Ingest daily memory files for today
+    # 2. Scan daily memory files within lookback window
     daily_dir = dreams_dir() / "daily"
     if daily_dir.exists():
-        for daily_file in daily_dir.iterdir():
-            if daily_file.is_file() and daily_file.name.startswith(day):
-                total_ingested += _ingest_daily_file(store, daily_file, day, day_state)
+        for f in sorted(daily_dir.iterdir()):
+            if not f.is_file() or not f.name.endswith(".md"):
+                continue
+            if _within_lookback(f.stem, LOOKBACK_DAYS):
+                total_ingested += _ingest_daily_file(store, f, day, day_state)
 
     save_store(store)
     save_daily_ingestion_state(ingestion_state)

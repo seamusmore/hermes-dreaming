@@ -139,7 +139,10 @@ The nightly consolidation is triggered by a Hermes cron job:
 ## Algorithm Overview
 
 ### Light Sleep
-- Scans corpus (score: 0.58) and daily memory (score: 0.62)
+- Scans corpus (score: 0.58) and daily memory (score: 0.62) from the last 7 days
+- Corpus is filtered at extraction time: fenced code blocks and image markers are stripped before ingestion
+- Entry keys include source file + chunk index (e.g. `session:2026-07-08:3`) to prevent cross-file key collapse
+- Query hashes record which date-batch ingested each entry; dedup prevents double-counting within the same scan
 - De-duplicates by Jaccard similarity
 - Records signals to short-term recall store
 
