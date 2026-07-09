@@ -154,9 +154,12 @@ lark-cli im +messages-send \
 算法代码位于插件 `~/.hermes/plugins/dreaming/`。
 
 ### Light Phase
-- 扫描 `dreams/corpus/` 和 `dreams/daily/`
+- 扫描最近 7 天的 `dreams/corpus/` 和 `dreams/daily/`
+- corpus 在提取时已过滤代码块和图片标记（`corpus_extractor.py` 的 `_sanitize_session_text()`）
+- key 包含来源文件名 + chunk 序号（如 `session:2026-07-08:3`），防止跨文件同内容坍缩
 - corpus chunks 固定分数：0.58
 - daily memory 行固定分数：0.62
+- query_hash 记录日期批次（如 `session:2026-07-08`），同一批次同一天重复命中同一 key 去重
 - 使用 Jaccard 相似度去重
 
 ### REM Phase

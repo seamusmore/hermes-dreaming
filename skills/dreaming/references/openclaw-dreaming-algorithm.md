@@ -37,34 +37,50 @@
 
 ### Daily Memory Ingestion
 
-```javascript
-const DAILY_INGESTION_SCORE = 0.62;
+```python
+DAILY_INGESTION_SCORE = 0.62
 ```
 
-1. 遍历 `lookbackDays` 天内的 `memory/YYYY-MM-DD.md`
-2. 每份文件拆分成 chunk，每份最多 `perFileCap` 条
+1. 遍历最近 7 天内的 `dreams/daily/YYYY-MM-DD.md`
+2. 每份文件拆分成 chunk
 3. 每个 chunk 固定分数 0.62
-4. 调用 `recordShortTermRecalls(signalType="daily")`
+4. key = `daily:{文件名}:{chunk序号}`（如 `daily:2026-07-08:1`）
+5. query_hash = `daily:{文件日期}`（如 `daily:2026-07-08`）
+6. 调用 `record_daily_signal()` → `record_signal()`
 
 ### Session Transcript Ingestion
 
-```javascript
-const SESSION_INGESTION_SCORE = 0.58;
+```python
+SESSION_INGESTION_SCORE = 0.58
 ```
 
-1. 遍历 `.dreams/session-corpus/YYYY-MM-DD.txt`
+1. 遍历最近 7 天内的 `dreams/corpus/YYYY-MM-DD.txt`
 2. 每个 chunk 固定分数 0.58
-3. 调用 `recordShortTermRecalls(signalType="recall")`
+3. key = `session:{文件名}:{chunk序号}`（如 `session:2026-07-08:3`）
+4. query_hash = `session:{文件日期}`（如 `session:2026-07-08`）
+5. 调用 `record_session_signal()` → `record_signal()`
+
+### Corpus 提取过滤
+
+corpus 提取时（`corpus_extractor.py`）在 `_sanitize_session_text()` 中过滤：
+- **fenced code blocks**（` ``` ` 包裹的内容和标记本身）→ 移除
+- **image markers**（`[Image]`、`[IMAGE:`、`MEDIA:`）→ 移除
+- 未闭合的代码块（有开始 ` ``` ` 无结束）→ 从 ` ``` ` 开始的内容保留
 
 ### 去重规则
 
-```javascript
-const dedupeSignal = dedupeByQueryPerDay 
-    && queryHashesBase.includes(queryHash) 
-    && recallDaysBase.includes(todayBucket);
+```python
+dedupe_signal = (
+    query_hash in entry.queryHashes
+    and day in entry.recallDays
+)
 ```
 
-同一个 query 在同一天内多次触发 → 只算一次信号。
+同一个 query_hash（同一日期批次）在同一天（day）内重复命中同一个 key → 只算一次信号。不同天的扫描各自 +1，不同来源（corpus vs daily）各自 +1。
+
+### Key 设计
+
+key 包含来源文件名和 chunk 序号，不同文件的同内容不坍缩到同一个条目。同一文件在 lookback 窗口内被反复扫描时 key 不变，recallCount 跨天累加。
 
 ---
 
